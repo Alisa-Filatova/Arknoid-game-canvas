@@ -21,6 +21,9 @@ const game = {
   },
   sounds: {
     bump: null,
+    coin: null,
+    loose: null,
+    win: null,
   },
   running: true,
   score: 0,
@@ -48,7 +51,7 @@ const game = {
   },
   preload(callback) {
     let loaded = 0;
-    let required = Object.keys(this.images).length + Object.keys(this.sounds).length;
+    const required = Object.keys(this.images).length + Object.keys(this.sounds).length;
 
     const onAssetsLoad = () => {
       loaded += 1;
@@ -60,31 +63,35 @@ const game = {
     this.preloadImages(onAssetsLoad);
     this.preloadAudio(onAssetsLoad);
   },
-  preloadImages(callback) {
+  preloadImages(onLoadCallback) {
     Object.keys(this.images).forEach((key) => {
       const image = new Image();
       image.src = `img/${key}.png`;
-      image.addEventListener('load', callback);
-
+      image.addEventListener('load', onLoadCallback);
       this.images[key] = image;
     });
   },
-  preloadAudio(callback) {
+  preloadAudio(onLoadCallback) {
     Object.keys(this.sounds).forEach((key) => {
       const sound = new Audio(`sounds/${key}.mp3`);
-      sound.addEventListener('canplaythrough', callback, { once: true });
-
+      sound.addEventListener('canplaythrough', onLoadCallback, { once: true });
       this.sounds[key] = sound;
     });
   },
   render() {
-    this.ctx.clearRect(0, 0, this.width, this.height);
-    this.ctx.drawImage(this.images.background, 0, 0);
-    this.ctx.drawImage(this.images.ball, this.ball.frame * this.ball.width, 0, this.ball.width, this.ball.height, this.ball.x, this.ball.y, this.ball.width, this.ball.height);
-    this.ctx.drawImage(this.images.platform, this.platform.x, this.platform.y);
+    const { ctx, images, platform, ball, score, width, height } = this;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(images.background, 0, 0);
+    ctx.drawImage(
+      images.ball,
+      ball.frame * ball.width, 0,
+      ball.width, ball.height,
+      ball.x, ball.y,
+      ball.width, ball.height
+    );
+    ctx.drawImage(images.platform, platform.x, platform.y);
     this.renderBlocks();
-
-    this.ctx.fillText(`Score: ${this.score}`, 20, 24);
+    ctx.fillText(`Score: ${score}`, 20, 24);
   },
   renderBlocks() {
     this.blocks.forEach((block) => {
@@ -113,17 +120,21 @@ const game = {
     }
   },
   update() {
+    const { platform, ball } = this;
     this.collideBlocks();
     this.collidePlatform();
-    this.platform.collideScreenBounds();
-    this.ball.collideScreenBounds();
-    this.platform.move();
-    this.ball.move();
+    platform.collideScreenBounds();
+    platform.move();
+    ball.collideScreenBounds();
+    ball.move();
   },
   addScore() {
     this.score += 1;
     if (this.score >= this.blocks.length) {
-      this.end('Win!');
+      this.sounds.win.play();
+      setTimeout(() => {
+        this.end('Winner!');
+      }, 300);
     }
   },
   collideBlocks() {
@@ -131,7 +142,7 @@ const game = {
       if (this.ball.collide(block) && block.active) {
         this.ball.bumpBlock(block);
         this.addScore();
-        this.sounds.bump.play();
+        this.sounds.coin.play();
       }
     }
   },
@@ -209,18 +220,18 @@ game.ball = {
         && y < element.y + element.height;
   },
   collideScreenBounds() {
-    let x = this.x + this.dx;
-    let y = this.y + this.dy;
+    const x = this.x + this.dx;
+    const y = this.y + this.dy;
 
-    let ballLeft = x;
-    let ballRight = ballLeft + this.width;
-    let ballTop = y;
-    let ballBottom = ballTop + this.height;
+    const ballLeft = x;
+    const ballRight = ballLeft + this.width;
+    const ballTop = y;
+    const ballBottom = ballTop + this.height;
 
-    let screenLeft = 0;
-    let screenRight = game.width;
-    let screenTop = 0;
-    let screenBottom = game.height;
+    const screenLeft = 0;
+    const screenRight = game.width;
+    const screenTop = 0;
+    const screenBottom = game.height;
 
     if (ballLeft < screenLeft) {
       this.x = 0;
@@ -235,6 +246,7 @@ game.ball = {
       this.dy = this.speed;
       game.sounds.bump.play();
     } else if (ballBottom > screenBottom) {
+      game.sounds.loose.play();
       game.end('Game Over!');
     }
   },
@@ -249,7 +261,7 @@ game.ball = {
 
     if (this.dy > 0) {
       this.dy = -this.speed;
-      let touchX = this.x + this.width / 2;
+      const touchX = this.x + this.width / 2;
       this.dx = this.speed * platform.getTouchOffset(touchX);
     }
   }
