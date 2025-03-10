@@ -123,9 +123,12 @@ const game = {
     const { platform, ball } = this;
     this.collideBlocks();
     this.collidePlatform();
-    platform.collideScreenBounds();
+    platform.collideScreenBounds(this.width);
     platform.move();
-    ball.collideScreenBounds();
+
+    if (!ball.collideScreenBounds(this.width, this.height)) {
+      this.end('Game over!');
+    }
     ball.move();
   },
   addScore() {
@@ -165,6 +168,8 @@ const game = {
   start() {
     this.init();
     this.preload(() => {
+      this.ball = new Ball(this.sounds);
+      this.platform = new Platform(this.ball);
       this.create();
       this.run();
     });
@@ -173,151 +178,6 @@ const game = {
     this.running = false;
     alert(message);
     window.location.reload();
-  },
-  random(min, max) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-  }
-};
-
-game.ball = {
-  dx: 0,
-  dy: 0,
-  speed: 3,
-  x: 320,
-  y: 280,
-  width: 20,
-  height: 20,
-  frame: 0,
-  start() {
-    this.dy = -this.speed;
-    this.dx = game.random(-this.speed, this.speed);
-    this.animate();
-  },
-  animate() {
-    setInterval(() => {
-      this.frame += 1;
-      if (this.frame > 3) {
-        this.frame = 0;
-      }
-    }, 100);
-  },
-  move() {
-    if (this.dy) {
-      this.y += this.dy;
-    }
-
-    if (this.dx) {
-      this.x += this.dx;
-    }
-  },
-  collide(element) {
-    const x = this.x + this.dx;
-    const y = this.y + this.dy;
-
-    return x + this.width > element.x
-        && x < element.x + element.width
-        && y + this.height > element.y
-        && y < element.y + element.height;
-  },
-  collideScreenBounds() {
-    const x = this.x + this.dx;
-    const y = this.y + this.dy;
-
-    const ballLeft = x;
-    const ballRight = ballLeft + this.width;
-    const ballTop = y;
-    const ballBottom = ballTop + this.height;
-
-    const screenLeft = 0;
-    const screenRight = game.width;
-    const screenTop = 0;
-    const screenBottom = game.height;
-
-    if (ballLeft < screenLeft) {
-      this.x = 0;
-      this.dx = this.speed;
-      game.sounds.bump.play();
-    } else if (ballRight > screenRight) {
-      this.x = screenRight - this.width;
-      this.dx = -this.speed;
-      game.sounds.bump.play();
-    } else if (ballTop < screenTop) {
-      this.y = 0;
-      this.dy = this.speed;
-      game.sounds.bump.play();
-    } else if (ballBottom > screenBottom) {
-      game.sounds.loose.play();
-      game.end('Game Over!');
-    }
-  },
-  bumpBlock(block) {
-    this.dy *= -1;
-    block.active = false;
-  },
-  bumpPlatform(platform) {
-    if (platform.dx) {
-      this.x += platform.dx;
-    }
-
-    if (this.dy > 0) {
-      this.dy = -this.speed;
-      const touchX = this.x + this.width / 2;
-      this.dx = this.speed * platform.getTouchOffset(touchX);
-    }
-  }
-};
-
-game.platform = {
-  speed: 6,
-  dx: 0,
-  x: 280,
-  y: 300,
-  width: 100,
-  height: 14,
-  ball: game.ball,
-  fire() {
-    if (this.ball) {
-      this.ball.start();
-      this.ball = null;
-    }
-  },
-  move() {
-    if (this.dx) {
-      this.x += this.dx;
-      if (this.ball) {
-        this.ball.x += this.dx;
-      }
-    }
-  },
-  start(direction) {
-    if (direction === KEYS.left) {
-      this.dx = -this.speed;
-    } else if (direction === KEYS.right) {
-      this.dx = this.speed;
-    }
-  },
-  stop() {
-    this.dx = 0;
-  },
-  getTouchOffset(touchX) {
-    let diff = (this.x + this.width) - touchX;
-    let offset = this.width - diff;
-    let result = 2 * offset / this.width;
-
-    return result - 1;
-  },
-  collideScreenBounds() {
-    const x = this.x + this.dx;
-
-    const platformLeft = x;
-    const platformRight = platformLeft + this.width;
-
-    const screenLeft = 0;
-    const screenRight = game.width;
-
-    if (platformLeft < screenLeft || platformRight > screenRight) {
-      this.dx = 0;
-    }
   }
 };
 
